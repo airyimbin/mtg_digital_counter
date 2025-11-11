@@ -11,8 +11,12 @@
 #include "esp_timer.h"
 #include "i2c_equipment.h"
 
+#if CONFIG_BT_ENABLED
 #include "ble_scan_bsp.h"
+#endif
+#if CONFIG_ESP_WIFI_ENABLED
 #include "esp_wifi_bsp.h"
+#endif
 
 #include "esp_io_expander_tca9554.h"
 
@@ -230,12 +234,18 @@ static void example_user_task(void *arg)
     }
     if(times - qmi_time == 1) //200ms
     {
-      qmi_time = times;
-      ImuDate_t qmi = i2c_imu_get();
-      snprintf(obj_send_data,28,"%.2f,%.2f,%.2f (g)",qmi.accx,qmi.accy,qmi.accz);
-      lv_label_set_text(ui->screen_label_12, obj_send_data);
-      snprintf(obj_send_data,28,"%.2f,%.2f,%.2f (dps)",qmi.gyrox,qmi.gyroy,qmi.gyroz);
-      lv_label_set_text(ui->screen_label_19, obj_send_data);
+  qmi_time = times;
+#if CONFIG_I2C_EQUIPMENT_ENABLED
+  ImuDate_t qmi = i2c_imu_get();
+  snprintf(obj_send_data,28,"%.2f,%.2f,%.2f (g)",qmi.accx,qmi.accy,qmi.accz);
+  lv_label_set_text(ui->screen_label_12, obj_send_data);
+  snprintf(obj_send_data,28,"%.2f,%.2f,%.2f (dps)",qmi.gyrox,qmi.gyroy,qmi.gyroz);
+  lv_label_set_text(ui->screen_label_19, obj_send_data);
+#else
+  snprintf(obj_send_data,28,"N/A");
+  lv_label_set_text(ui->screen_label_12, obj_send_data);
+  lv_label_set_text(ui->screen_label_19, obj_send_data);
+#endif
     }
     vTaskDelay(pdMS_TO_TICKS(200));
     times++;
@@ -260,6 +270,7 @@ static void example_sdcard_task(void *arg)
   vTaskDelete(NULL); 
 }
 #endif
+#if CONFIG_ESP_WIFI_ENABLED || CONFIG_BT_ENABLED
 void example_scan_wifi_ble_task(void *arg)
 {
   lv_ui *Send_ui = (lv_ui *)arg;
@@ -267,16 +278,25 @@ void example_scan_wifi_ble_task(void *arg)
   uint8_t ble_scan_count = 0;
   uint8_t ble_mac[6];
   EventBits_t even = xEventGroupWaitBits(wifi_even_,0x02,pdTRUE,pdTRUE,pdMS_TO_TICKS(30000)); 
+#if CONFIG_ESP_WIFI_ENABLED
   espwifi_deinit(); //释放WIFI
+#endif
+#if CONFIG_BT_ENABLED
   ble_scan_prepare();
   ble_stack_init();
   ble_scan_start();
-  for(;xQueueReceive(ble_queue,ble_mac,3500) == pdTRUE;)
+#endif
+  /* If Bluetooth is enabled, drain the BLE queue of discovered addresses */
+#if CONFIG_BT_ENABLED
+  for(; xQueueReceive(ble_queue, ble_mac, 3500) == pdTRUE; )
   {
     //ESP_LOGI(TAG, "%d",connt);
     ble_scan_count++;
     vTaskDelay(pdMS_TO_TICKS(20));
   }
+#else
+  (void)ble_mac; // silence unused-var when BT disabled
+#endif
   if(READ_BIT(even,1))
   {
     snprintf(send_lvgl,9,"%d",user_esp_bsp.apNum);
@@ -288,9 +308,12 @@ void example_scan_wifi_ble_task(void *arg)
   }
   snprintf(send_lvgl,9,"%d",ble_scan_count);
   lv_label_set_text(Send_ui->screen_label_17, send_lvgl);
+#if CONFIG_BT_ENABLED
   ble_stack_deinit();//释放BLE
+#endif
   vTaskDelete(NULL);
 }
+#endif
 static void lvgl_obj_event_handler(lv_event_t *e)
 {
   lv_event_code_t code = lv_event_get_code(e);
@@ -331,8 +354,9 @@ void user_app_init(void)
   adc_bsp_init();
   i2c_rtc_setup();
   i2c_rtc_setTime(2025,7,7,18,43,30);
+  #if CONFIG_I2C_EQUIPMENT_ENABLED
   i2c_qmi_setup();
-  espwifi_init();
+  #endif
   user_audio_bsp_init();
   tca9554_init();
 #if SD_CARD_EN
@@ -342,7 +366,9 @@ void user_app_init(void)
   xTaskCreatePinnedToCore(example_user_task, "example_user_task", 4 * 1024, &user_ui, 2, NULL,0);          //用户事件
 xTaskCreatePinnedToCore(example_button_task, "example_button_task", 4 * 1024, &user_ui, 2, NULL,0);      //按钮事件  
   xTaskCreatePinnedToCore(example_color_task, "example_color_task", 4 * 1024, &user_ui, 2, NULL,0);        //RGB颜色测试
+  #if CONFIG_ESP_WIFI_ENABLED || CONFIG_BT_ENABLED
   xTaskCreatePinnedToCore(example_scan_wifi_ble_task, "example_scan_wifi_ble_task", 3 * 1024,&user_ui, 2, NULL,0);   
+  #endif
   xTaskCreatePinnedToCore(i2s_audio_Test, "i2s_audio_Test", 4 * 1024, &audio_Test_flag, 2, NULL,0);           
   /*even add*/
   lv_obj_add_event_cb(user_ui.screen_slider_1, lvgl_obj_event_handler, LV_EVENT_ALL, &user_ui); 

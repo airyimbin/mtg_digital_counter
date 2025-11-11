@@ -1,11 +1,12 @@
 #include <stdio.h>
+#include "sdkconfig.h"
 #include "esp_wifi_bsp.h"
+#include "esp_log.h"
+
+#if CONFIG_ESP_WIFI_ENABLED
 #include "esp_wifi.h"  // WIFI
 #include "esp_event.h" // Events
 #include "nvs_flash.h" // NVS storage
-#include "esp_log.h"
-
-
 #include "string.h"  //****************
 
 EventGroupHandle_t wifi_even_ = NULL;
@@ -55,18 +56,6 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
     uint32_t pxip = event->ip_info.ip.addr;
     sprintf(ip, "%d.%d.%d.%d", (uint8_t)(pxip), (uint8_t)(pxip >> 8), (uint8_t)(pxip >> 16), (uint8_t)(pxip >> 24));
     ESP_LOGI("wifiSta","%s",ip);
-    //strcpy(user_esp_bsp._ip,ip);
-    //wifi_ap_record_t ap_info;
-    //if (esp_wifi_sta_get_ap_info(&ap_info) == ESP_OK)
-    //{
-    //  ESP_LOGE("wifiSta","RSSI: %d dBm",ap_info.rssi);
-    //}
-    //else
-    //{
-    //  ESP_LOGE("wifiSta","Failed to get RSSI");
-    //}
-    //user_esp_bsp.rssi = ap_info.rssi;
-    //xEventGroupSetBits(wifi_even_,0x01);
   }
   else if(event_id == WIFI_EVENT_STA_DISCONNECTED)
   {
@@ -80,11 +69,7 @@ void espwifi_deinit(void)
   esp_wifi_deinit();
   esp_netif_destroy_default_wifi(net);
   esp_event_loop_delete_default();
-  //esp_netif_deinit();
-  //nvs_flash_deinit();
 }
-
-
 
 static void example_scan_wifi_task(void *arg)
 {
@@ -100,4 +85,11 @@ static void example_scan_wifi_task(void *arg)
   xEventGroupSetBits(wifi_even_,0x02);
   vTaskDelete(NULL);
 }
+#else
+// Stubs when WiFi is disabled at build time
+EventGroupHandle_t wifi_even_ = NULL;
+esp_bsp_t user_esp_bsp;
+void espwifi_init(void) { ESP_LOGI("esp_wifi_bsp","WiFi disabled at build time"); }
+void espwifi_deinit(void) { }
+#endif
 

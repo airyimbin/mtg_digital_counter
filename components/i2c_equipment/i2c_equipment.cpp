@@ -1,14 +1,22 @@
 #include <stdio.h>
+#include "sdkconfig.h"
 #include "i2c_equipment.h"
 #include "i2c_bsp.h"
 #include "user_config.h"
 #include "SensorPCF85063.hpp"
 #include "SensorQMI8658.hpp"
+
+#if CONFIG_I2C_EQUIPMENT_ENABLED
 SensorPCF85063 rtc;
 SensorQMI8658 qmi;
 
 IMUdata acc;
 IMUdata gyr;
+#else
+// When the i2c equipment is disabled we still provide minimal global variables
+IMUdata acc;
+IMUdata gyr;
+#endif
 
 static uint32_t hal_callback(SensorCommCustomHal::Operation op, void *param1, void *param2)
 {
@@ -110,10 +118,14 @@ bool i2c_dev_Callback(uint8_t addr, uint8_t reg, uint8_t *buf, size_t len, bool 
 
 void i2c_rtc_setup(void)
 {
+#if CONFIG_I2C_EQUIPMENT_ENABLED
   if(rtc.begin(i2c_dev_Callback))
   {
     ESP_LOGI("rtc","rtc_will");
   }
+#else
+  (void)i2c_dev_Callback;
+#endif
 }
 void i2c_dev_init(void)
 {
@@ -122,6 +134,7 @@ void i2c_dev_init(void)
 }
 void i2c_qmi_setup(void)
 {
+#if CONFIG_I2C_EQUIPMENT_ENABLED
   if(qmi.begin(i2c_dev_Callback,hal_callback,IMU_QMI8658_ADDR))
   {
     ESP_LOGI("qmi","qmi_will");
@@ -150,6 +163,9 @@ void i2c_qmi_setup(void)
 
   // Print register configuration information
   qmi.dumpCtrlRegister();
+#else
+  (void)i2c_dev_Callback;
+#endif
 }
 /*
 uint16_t year = 2023;
@@ -161,11 +177,16 @@ uint8_t second = 30;
 */
 void i2c_rtc_setTime(uint16_t year,uint8_t month,uint8_t day,uint8_t hour,uint8_t minute,uint8_t second)
 {
+#if CONFIG_I2C_EQUIPMENT_ENABLED
   rtc.setDateTime(year, month, day, hour, minute, second);
+#else
+  (void)year; (void)month; (void)day; (void)hour; (void)minute; (void)second;
+#endif
 }
 
 void i2c_rtc_task(void *arg)
 {
+#if CONFIG_I2C_EQUIPMENT_ENABLED
   for(;;)
   {
     RTC_DateTime datetime = rtc.getDateTime();
@@ -179,11 +200,16 @@ void i2c_rtc_task(void *arg)
     printf("\n"); 
     vTaskDelay(pdMS_TO_TICKS(5000));
   }
+#else
+  (void)arg;
+  vTaskDelete(NULL);
+#endif
 }
 
 
 RtcDateTime_t i2c_rtc_get(void)
 {
+#if CONFIG_I2C_EQUIPMENT_ENABLED
   RtcDateTime_t time;
   RTC_DateTime datetime = rtc.getDateTime();
   time.year = datetime.getYear();
@@ -194,11 +220,17 @@ RtcDateTime_t i2c_rtc_get(void)
   time.second = datetime.getSecond();
   time.week = datetime.getWeek();
   return time;
+#else
+  RtcDateTime_t time;
+  memset(&time,0,sizeof(RtcDateTime_t));
+  return time;
+#endif
 }
 
 
 void i2c_qmi_task(void *arg)
 {
+#if CONFIG_I2C_EQUIPMENT_ENABLED
   for(;;)
   {
     if (qmi.getDataReady())
@@ -212,19 +244,20 @@ void i2c_qmi_task(void *arg)
       {
         // Print to serial plotter
         printf("GYRO.x:%.2f,GYRO.y:%.2f,GYRO.z:%.2f Unit:degrees/sec\n",gyr.x,gyr.y,gyr.z);
-        // Serial.print(" GYRO.x:"); Serial.print(gyr.x); Serial.println(" degrees/sec");
-        // Serial.print(",GYRO.y:"); Serial.print(gyr.y); Serial.println(" degrees/sec");
-        // Serial.print(",GYRO.z:"); Serial.print(gyr.z); Serial.println(" degrees/sec");
-        
       }
       printf("Temperature: %.2f Unit:degrees C\n",qmi.getTemperature_C());
     }
     vTaskDelay(pdMS_TO_TICKS(100));
   }
+#else
+  (void)arg;
+  vTaskDelete(NULL);
+#endif
 }
 
 ImuDate_t i2c_imu_get(void)
 {
+#if CONFIG_I2C_EQUIPMENT_ENABLED
   ImuDate_t imuData;
   memset(&imuData,0,sizeof(ImuDate_t));
   if (qmi.getDataReady())
@@ -243,4 +276,11 @@ ImuDate_t i2c_imu_get(void)
     }
   }
   return imuData;
+#else
+  ImuDate_t imuData;
+  memset(&imuData,0,sizeof(ImuDate_t));
+  return imuData;
+#endif
 }
+
+// No trailing stubs — functions are guarded where they are defined above.

@@ -581,7 +581,12 @@ void setup_scr_screen(lv_ui *ui)
     //Write codes screen_img_1
     ui->screen_img_1 = lv_img_create(ui->screen_cont_2);
     lv_obj_add_flag(ui->screen_img_1, LV_OBJ_FLAG_CLICKABLE);
+#ifdef UI_EMBEDDED_LARGE_IMAGES
     lv_img_set_src(ui->screen_img_1, &_RGB_R_alpha_466x466);
+#else
+    /* Large RGB image excluded from build; hide placeholder image object. */
+    lv_obj_add_flag(ui->screen_img_1, LV_OBJ_FLAG_HIDDEN);
+#endif
     lv_img_set_pivot(ui->screen_img_1, 50,50);
     lv_img_set_angle(ui->screen_img_1, 0);
     lv_obj_set_pos(ui->screen_img_1, 0, 0);
@@ -596,7 +601,11 @@ void setup_scr_screen(lv_ui *ui)
     //Write codes screen_img_2
     ui->screen_img_2 = lv_img_create(ui->screen_cont_2);
     lv_obj_add_flag(ui->screen_img_2, LV_OBJ_FLAG_CLICKABLE);
+#ifdef UI_EMBEDDED_LARGE_IMAGES
     lv_img_set_src(ui->screen_img_2, &_RGB_G_alpha_466x466);
+#else
+    lv_obj_add_flag(ui->screen_img_2, LV_OBJ_FLAG_HIDDEN);
+#endif
     lv_img_set_pivot(ui->screen_img_2, 50,50);
     lv_img_set_angle(ui->screen_img_2, 0);
     lv_obj_set_pos(ui->screen_img_2, 0, 0);
@@ -612,7 +621,11 @@ void setup_scr_screen(lv_ui *ui)
     //Write codes screen_img_3
     ui->screen_img_3 = lv_img_create(ui->screen_cont_2);
     lv_obj_add_flag(ui->screen_img_3, LV_OBJ_FLAG_CLICKABLE);
+#ifdef UI_EMBEDDED_LARGE_IMAGES
     lv_img_set_src(ui->screen_img_3, &_RGB_B_alpha_466x466);
+#else
+    lv_obj_add_flag(ui->screen_img_3, LV_OBJ_FLAG_HIDDEN);
+#endif
     lv_img_set_pivot(ui->screen_img_3, 50,50);
     lv_img_set_angle(ui->screen_img_3, 0);
     lv_obj_set_pos(ui->screen_img_3, 0, 0);

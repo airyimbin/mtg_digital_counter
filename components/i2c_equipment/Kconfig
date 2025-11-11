@@ -1,0 +1,10 @@
+menu "I2C Equipment"
+
+config I2C_EQUIPMENT_ENABLED
+    bool "Enable I2C equipment (RTC / IMU)"
+    default y
+    help
+      Enable the I2C equipment component (RTC, accelerometer, gyroscope). Disable
+      this option to exclude sensor initialization and related tasks at build time.
+
+endmenu
