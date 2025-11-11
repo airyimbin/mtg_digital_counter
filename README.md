@@ -15,6 +15,7 @@ https://www.waveshare.com/wiki/Install_Espressif_IDF_Plugin_Tutorial
 ### 2. Clone this repository
 ### 3. Use these instructions for setting up Visual Studio Code
 https://www.waveshare.com/wiki/ESP32-C6-Touch-AMOLED-1.43#Use_the_IDF_Demos
+
 Make sure to select ESP32-C6 at the bottom instead of ESP32-S3 like the instructions say.
-### 4. Plug in to computer
+### 4. Plug ESP32-C6 in to computer
 ### 5. Click the build button (small fire icon on the bottom row)
