@@ -2,11 +2,10 @@
 #include "adc_bsp.h"
 #include "esp_log.h"
 #include "esp_adc/adc_oneshot.h"
-#include "esp_adc/adc_cali.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-#define ADC_Calibrate
+#undef ADC_Calibrate
 #ifdef ADC_Calibrate
   static adc_cali_handle_t cali_handle;
 #endif
@@ -14,13 +13,13 @@ static adc_oneshot_unit_handle_t adc1_handle;
 void adc_bsp_init(void)
 {
 #ifdef ADC_Calibrate
-  /* Use line-fitting calibration API for this ESP-IDF version */
-  adc_cali_line_fitting_config_t cali_config = {
+  adc_cali_curve_fitting_config_t cali_config = 
+  {
     .unit_id = ADC_UNIT_1,
     .atten = ADC_ATTEN_DB_12,
-    .bitwidth = ADC_BITWIDTH_12,
+    .bitwidth = ADC_BITWIDTH_12, //4096
   };
-  ESP_ERROR_CHECK(adc_cali_create_scheme_line_fitting(&cali_config, &cali_handle));
+  ESP_ERROR_CHECK(adc_cali_create_scheme_curve_fitting(&cali_config, &cali_handle));
 #endif
   adc_oneshot_unit_init_cfg_t init_config1 = {
     .unit_id = ADC_UNIT_1, //ADC1

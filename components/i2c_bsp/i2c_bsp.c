@@ -2,6 +2,7 @@
 #include "i2c_bsp.h"
 #include "user_config.h"
 #include "freertos/FreeRTOS.h"
+#include "sdkconfig.h"
 
 i2c_master_bus_handle_t user_i2c_port0_handle = NULL;
 i2c_master_dev_handle_t rtc_dev_handle = NULL;
@@ -38,11 +39,18 @@ void i2c_master_Init(void)
     .scl_speed_hz = 300000,
   };
   dev_cfg.device_address = RTC_PCF85063_ADDR;
+#if CONFIG_I2C_EQUIPMENT_ENABLED
+  /* Add RTC and IMU devices only when I2C equipment feature is enabled.
+    If the hardware is not present (or you disabled I2C equipment),
+    avoiding these registrations prevents repeated NACKs from missing slaves. */
   ESP_ERROR_CHECK(i2c_master_bus_add_device(user_i2c_port0_handle, &dev_cfg, &rtc_dev_handle));
 
   dev_cfg.device_address = IMU_QMI8658_ADDR;
   ESP_ERROR_CHECK(i2c_master_bus_add_device(user_i2c_port0_handle, &dev_cfg, &imu_dev_handle));
+#endif
 
+  /* Always add the display/touch device so touchscreen input remains available.
+    If your touchscreen is on I2C, keep this enabled even when other I2C sensors are disabled. */
   dev_cfg.device_address = DISP_TOUCH_ADDR;
   ESP_ERROR_CHECK(i2c_master_bus_add_device(user_i2c_port0_handle, &dev_cfg, &disp_touch_dev_handle));
 

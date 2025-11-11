@@ -1,10 +1,18 @@
-menu "I2C Equipment"
+menu "I2C equipment options"
 
-config I2C_EQUIPMENT_ENABLED
-    bool "Enable I2C equipment (RTC / IMU)"
+config POWER_CTRL_ENABLED
+    bool "Enable power-control via TCA9554 IO-expander when other I2C equipment is disabled"
     default y
     help
-      Enable the I2C equipment component (RTC, accelerometer, gyroscope). Disable
-      this option to exclude sensor initialization and related tasks at build time.
+      When enabled the firmware will initialize the TCA9554 IO-expander (via the
+      existing I2C master) so the board power control pin can be toggled even if
+      other I2C equipment (RTC/IMU) is disabled via CONFIG_I2C_EQUIPMENT_ENABLED.
 
 endmenu
+config I2C_EQUIPMENT_ENABLED
+    bool "Enable I2C equipment (accelerometer/gyro/RTC)"
+    default n
+    help
+      Enable board I2C equipment including accelerometer, gyroscope and RTC.
+      When disabled, the i2c_equipment component will provide safe no-op stubs so
+      other code can build without the hardware present.

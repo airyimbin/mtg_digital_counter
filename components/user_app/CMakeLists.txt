@@ -8,6 +8,5 @@ idf_component_register(
   button_bsp  
   audio_bsp
   i2c_equipment
-  esp_wifi_bsp
-  ble_scan_bsp
   INCLUDE_DIRS "./")
+  

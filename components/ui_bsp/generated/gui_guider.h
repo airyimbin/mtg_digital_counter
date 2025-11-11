@@ -90,14 +90,9 @@ extern lv_ui guider_ui;
 
 
 void setup_scr_screen(lv_ui *ui);
-
-/* Large embedded RGB images are optional. Move the generated C image files out of the
-	build to reduce flash usage; define UI_EMBEDDED_LARGE_IMAGES to re-enable inclusion. */
-#ifdef UI_EMBEDDED_LARGE_IMAGES
 LV_IMG_DECLARE(_RGB_R_alpha_466x466);
 LV_IMG_DECLARE(_RGB_G_alpha_466x466);
 LV_IMG_DECLARE(_RGB_B_alpha_466x466);
-#endif
 
 LV_FONT_DECLARE(lv_font_montserratMedium_16)
 LV_FONT_DECLARE(lv_font_montserratMedium_42)

@@ -1,86 +1,30 @@
 #include <stdio.h>
 #include "sdkconfig.h"
+#include <cstring>
 #include "i2c_equipment.h"
 #include "i2c_bsp.h"
 #include "user_config.h"
+#include "SensorPlatform.hpp" // ensure SensorCommCustomHal is available
 #include "SensorPCF85063.hpp"
 #include "SensorQMI8658.hpp"
 
-#if CONFIG_I2C_EQUIPMENT_ENABLED
 SensorPCF85063 rtc;
 SensorQMI8658 qmi;
 
 IMUdata acc;
 IMUdata gyr;
-#else
-// When the i2c equipment is disabled we still provide minimal global variables
-IMUdata acc;
-IMUdata gyr;
+
+#if !defined(CONFIG_I2C_EQUIPMENT_ENABLED)
+/* When I2C equipment is disabled, still include these headers for types; the
+  functions that depend on actual sensor hardware will be no-ops. */
+#include "i2c_equipment.h"
+#include "i2c_bsp.h"
+#include "user_config.h"
 #endif
 
-static uint32_t hal_callback(SensorCommCustomHal::Operation op, void *param1, void *param2)
-{
-  switch (op) 
-  {
-    // Set GPIO mode
-    case SensorCommCustomHal::OP_PINMODE: {
-        uint8_t pin = reinterpret_cast<uintptr_t>(param1);
-        uint8_t mode = reinterpret_cast<uintptr_t>(param2);
-        gpio_config_t config;
-        memset(&config, 0, sizeof(config));
-        config.pin_bit_mask = 1ULL << pin;
-        switch (mode) {
-        case INPUT:
-            config.mode = GPIO_MODE_INPUT;
-            break;
-        case OUTPUT:
-            config.mode = GPIO_MODE_OUTPUT;
-            break;
-        }
-        config.pull_up_en = GPIO_PULLUP_DISABLE;
-        config.pull_down_en = GPIO_PULLDOWN_DISABLE;
-        config.intr_type = GPIO_INTR_DISABLE;
-        ESP_ERROR_CHECK(gpio_config(&config));
-    }
-    break;
-    // Set GPIO level
-    case SensorCommCustomHal::OP_DIGITALWRITE: {
-        uint8_t pin = reinterpret_cast<uintptr_t>(param1);
-        uint8_t level = reinterpret_cast<uintptr_t>(param2);
-        gpio_set_level((gpio_num_t )pin, level);
-    }
-    break;
-    // Read GPIO level
-    case SensorCommCustomHal::OP_DIGITALREAD: {
-        uint8_t pin = reinterpret_cast<uintptr_t>(param1);
-        return gpio_get_level((gpio_num_t)pin);
-    }
-    break;
-    // Get the current running milliseconds
-    case SensorCommCustomHal::OP_MILLIS:
-        return (uint32_t) (esp_timer_get_time() / 1000LL);
-
-    // Delay in milliseconds
-    case SensorCommCustomHal::OP_DELAY: {
-        if (param1) {
-            uint32_t ms = reinterpret_cast<uintptr_t>(param1);
-            vTaskDelay(pdMS_TO_TICKS(ms));
-            //esp_rom_delay_us((ms % portTICK_PERIOD_MS) * 1000UL);
-            //ESP_LOGE("MS","%ld",ms);
-        }
-    }
-    break;
-    // Delay in microseconds
-    case SensorCommCustomHal::OP_DELAYMICROSECONDS: {
-        uint32_t us = reinterpret_cast<uintptr_t>(param1);
-        esp_rom_delay_us(us);
-    }
-    break;
-    default:
-        break;
-  }
-  return 0;
-}
+// HAL callback implementation moved to hal_callback.cpp to ensure the
+// SensorLib platform headers are included in the same translation unit.
+// See components/i2c_equipment/hal_callback.cpp
 
 bool i2c_dev_Callback(uint8_t addr, uint8_t reg, uint8_t *buf, size_t len, bool writeReg, bool isWrite)
 {
@@ -116,6 +60,70 @@ bool i2c_dev_Callback(uint8_t addr, uint8_t reg, uint8_t *buf, size_t len, bool 
   return (ret == ESP_OK) ? true : false;
 }
 
+// HAL callback implementation (available regardless of CONFIG_I2C_EQUIPMENT_ENABLED)
+// SensorLib drivers pass an Operation enum (SensorCommCustomHal::Operation)
+// which we map to ESP-IDF GPIO/timing APIs.
+static uint32_t hal_callback(SensorCommCustomHal::Operation op, void *param1, void *param2)
+{
+  switch (op) 
+  {
+  case SensorCommCustomHal::OP_PINMODE: {
+    uint8_t pin = reinterpret_cast<uintptr_t>(param1);
+    uint8_t mode = reinterpret_cast<uintptr_t>(param2);
+    gpio_config_t config;
+    memset(&config, 0, sizeof(config));
+    config.pin_bit_mask = 1ULL << pin;
+    switch (mode) {
+    case INPUT:
+      config.mode = GPIO_MODE_INPUT;
+      break;
+    case OUTPUT:
+      config.mode = GPIO_MODE_OUTPUT;
+      break;
+    }
+    config.pull_up_en = GPIO_PULLUP_DISABLE;
+    config.pull_down_en = GPIO_PULLDOWN_DISABLE;
+    config.intr_type = GPIO_INTR_DISABLE;
+    ESP_ERROR_CHECK(gpio_config(&config));
+  }
+  break;
+
+  case SensorCommCustomHal::OP_DIGITALWRITE: {
+    uint8_t pin = reinterpret_cast<uintptr_t>(param1);
+    uint8_t level = reinterpret_cast<uintptr_t>(param2);
+    gpio_set_level((gpio_num_t )pin, level);
+  }
+  break;
+
+  case SensorCommCustomHal::OP_DIGITALREAD: {
+    uint8_t pin = reinterpret_cast<uintptr_t>(param1);
+    return gpio_get_level((gpio_num_t)pin);
+  }
+  break;
+
+  case SensorCommCustomHal::OP_MILLIS:
+    return (uint32_t) (esp_timer_get_time() / 1000LL);
+
+  case SensorCommCustomHal::OP_DELAY: {
+    if (param1) {
+      uint32_t ms = reinterpret_cast<uintptr_t>(param1);
+      vTaskDelay(pdMS_TO_TICKS(ms));
+    }
+  }
+  break;
+
+  case SensorCommCustomHal::OP_DELAYMICROSECONDS: {
+    uint32_t us = reinterpret_cast<uintptr_t>(param1);
+    esp_rom_delay_us(us);
+  }
+  break;
+
+  default:
+    break;
+  }
+  return 0;
+}
+
 void i2c_rtc_setup(void)
 {
 #if CONFIG_I2C_EQUIPMENT_ENABLED
@@ -124,7 +132,7 @@ void i2c_rtc_setup(void)
     ESP_LOGI("rtc","rtc_will");
   }
 #else
-  (void)i2c_dev_Callback;
+  (void)i2c_rtc_setup; // no-op when I2C equipment is disabled
 #endif
 }
 void i2c_dev_init(void)
@@ -164,7 +172,7 @@ void i2c_qmi_setup(void)
   // Print register configuration information
   qmi.dumpCtrlRegister();
 #else
-  (void)i2c_dev_Callback;
+  (void)i2c_qmi_setup; // no-op when disabled
 #endif
 }
 /*
@@ -201,7 +209,6 @@ void i2c_rtc_task(void *arg)
     vTaskDelay(pdMS_TO_TICKS(5000));
   }
 #else
-  (void)arg;
   vTaskDelete(NULL);
 #endif
 }
@@ -209,8 +216,9 @@ void i2c_rtc_task(void *arg)
 
 RtcDateTime_t i2c_rtc_get(void)
 {
-#if CONFIG_I2C_EQUIPMENT_ENABLED
   RtcDateTime_t time;
+  memset(&time,0,sizeof(time));
+#if CONFIG_I2C_EQUIPMENT_ENABLED
   RTC_DateTime datetime = rtc.getDateTime();
   time.year = datetime.getYear();
   time.month = datetime.getMonth();
@@ -219,12 +227,8 @@ RtcDateTime_t i2c_rtc_get(void)
   time.minute = datetime.getMinute();
   time.second = datetime.getSecond();
   time.week = datetime.getWeek();
-  return time;
-#else
-  RtcDateTime_t time;
-  memset(&time,0,sizeof(RtcDateTime_t));
-  return time;
 #endif
+  return time;
 }
 
 
@@ -250,16 +254,15 @@ void i2c_qmi_task(void *arg)
     vTaskDelay(pdMS_TO_TICKS(100));
   }
 #else
-  (void)arg;
   vTaskDelete(NULL);
 #endif
 }
 
 ImuDate_t i2c_imu_get(void)
 {
-#if CONFIG_I2C_EQUIPMENT_ENABLED
   ImuDate_t imuData;
   memset(&imuData,0,sizeof(ImuDate_t));
+#if CONFIG_I2C_EQUIPMENT_ENABLED
   if (qmi.getDataReady())
   {
     if (qmi.getAccelerometer(acc.x, acc.y, acc.z)) //g
@@ -275,12 +278,6 @@ ImuDate_t i2c_imu_get(void)
       imuData.gyroz = gyr.z;
     }
   }
-  return imuData;
-#else
-  ImuDate_t imuData;
-  memset(&imuData,0,sizeof(ImuDate_t));
-  return imuData;
 #endif
+  return imuData;
 }
-
-// No trailing stubs — functions are guarded where they are defined above.
