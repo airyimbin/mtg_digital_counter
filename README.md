@@ -1,7 +1,8 @@
 # Digital Counter for MTG or any other TCG that could use a counter.
 
 This project uses the ESP32-C6 board from Waveshare and a 1.43 inch AMOLED screen.
-It has two functions. One for a life counter and one for a +X/+X counter.
+
+It has two functions. One for a life counter and one for a ±X/±X counter.
 Brightness can be adjusted as well.
 
 https://github.com/user-attachments/assets/ffdc81d7-ba6b-4441-957d-985b730fa344
