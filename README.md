@@ -11,7 +11,7 @@ Brightness can be adjusted as well.
 2. [Battery](https://www.amazon.com/dp/B0C2PQND8H)
 
    You will need to splice the cables from this battery to a JST connector that is 1.25mm. The battery comes with 2mm JST connector.
-3. 3D printed case (file found in this repo)[https://github.com/airyimbin/mtg_digital_counter/tree/main/3D%20Files]
+3. 3D printed case ([file found in this repo](https://github.com/airyimbin/mtg_digital_counter/tree/main/3D%20Files))
 
 ## Build Instructions
 ### 1. Install ESP-IDF for Visual Studio Code
