@@ -14,15 +14,15 @@ Brightness can be adjusted as well.
 3. 3D printed case ([file found in this repo](https://github.com/airyimbin/mtg_digital_counter/tree/main/3D%20Files))
 
 ## Flash Instructions
-### 1. Install ESP-IDF for Visual Studio Code
+1. Install ESP-IDF for Visual Studio Code
 https://www.waveshare.com/wiki/Install_Espressif_IDF_Plugin_Tutorial
-### 2. Clone this repository
-### 3. Use these instructions for setting up Visual Studio Code
+2. Clone this repository
+3. Use these instructions for setting up Visual Studio Code
 https://www.waveshare.com/wiki/ESP32-C6-Touch-AMOLED-1.43#Use_the_IDF_Demos
 
 Make sure to select ESP32-C6 at the bottom instead of ESP32-S3 like the instructions say.
-### 4. Plug ESP32-C6 in to computer
-### 5. Click the build button (small fire icon on the bottom row)
+4. Plug ESP32-C6 in to computer
+5. Click the build button (small fire icon on the bottom row)
 
 ## Putting it together
 1. Unscrew the bottom cover for the ESP32-C6.
@@ -33,6 +33,8 @@ Make sure to select ESP32-C6 at the bottom instead of ESP32-S3 like the instruct
 6. Use the screws from taking off the cover to screw 3D printed case to the board.
 7. There should be enough room for the 802535 battery to fit vertically.
 
+<hr>
+
 Enjoy. Code is built from demo code Waveshare uses, so there is slight jank. But all unnecessary functions like gyro, accelerometer, wifi, and ble should be disabled. 
 
-I suck at coding so I could be wrong.
+I suck at coding, so I could be wrong.
