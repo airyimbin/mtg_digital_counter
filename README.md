@@ -31,7 +31,7 @@ https://github.com/user-attachments/assets/ffdc81d7-ba6b-4441-957d-985b730fa344
 
    Make sure to select ESP32-C6 at the bottom instead of ESP32-S3 like the instructions say.
 4. Plug ESP32-C6 in to computer
-5. Click the build button (small fire icon on the bottom row)
+5. Click the flash button (small lightning icon on the bottom row)
 
 ## Putting it together
 1. Unscrew the bottom cover for the ESP32-C6.
