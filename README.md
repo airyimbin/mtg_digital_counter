@@ -4,7 +4,13 @@ This project uses the ESP32-C6 board from Waveshare and a 1.43 inch AMOLED scree
 It has two functions. One for a life counter and one for a +X/+X counter.
 Brightness can be adjusted as well.
 
+https://github.com/user-attachments/assets/ffdc81d7-ba6b-4441-957d-985b730fa344
+
 ## Products Needed
+
+
+
+
 1. [ESP32-C6 with screen](https://www.amazon.com/dp/B0FJS3V5ZS)
 
    I like this one because it comes with a speaker you don't need, but you an cut off the wires to reuse the JST connector of the right size for the battery. The battery comes with a JST connector that is too big. That way you don't have to buy extra stuff.
