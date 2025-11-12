@@ -652,7 +652,7 @@ void setup_scr_screen(lv_ui *ui)
 
     //Write codes screen_slider_1
     ui->screen_slider_1 = lv_slider_create(ui->screen_carousel_1_element_3);
-    lv_slider_set_range(ui->screen_slider_1, 0, 255);
+    lv_slider_set_range(ui->screen_slider_1, 20, 255);
     lv_slider_set_mode(ui->screen_slider_1, LV_SLIDER_MODE_NORMAL);
     lv_slider_set_value(ui->screen_slider_1, 255, LV_ANIM_OFF);
     lv_obj_set_pos(ui->screen_slider_1, 85, 269);

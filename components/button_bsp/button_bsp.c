@@ -94,9 +94,6 @@ static void button_press_event(void* btn)
   PressEvent event = get_button_event(user_button);
   uint8_t buttonID = user_button->button_id;
   uint32_t eventBits_ = 0x00;
-  /* Debug: log button and GPIO state so we can trace why power button isn't registering */
-  ESP_LOGI(TAG, "button callback: id=%u event=%d", buttonID, event);
-  ESP_LOGI(TAG, "gpio levels: button1(gpio %d)=%d, button2(gpio %d)=%d", USER_KEY_1, read_button_GPIO(button1_id), USER_KEY_2, read_button_GPIO(button2_id));
   switch (event)
   {
     case SINGLE_CLICK:
@@ -222,7 +219,6 @@ static void button_press_event(void* btn)
       return;
   }
   xEventGroupSetBits(key_groups,eventBits_);
-  ESP_LOGI(TAG, "posted event bits: 0x%08x", eventBits_);
   //ESP_LOGE("even","%ld",eventBits_);
 }
 
