@@ -55,6 +55,162 @@ static lv_timer_t * life_delta_timer = NULL;
 // running cumulative delta shown while user is actively tapping; resets after timeout
 static int life_delta_total = 0;
 
+/* Commander damage screen: four quadrant totals and a modal per-quadrant editor */
+static int commander_totals[4] = {0, 0, 0, 0};
+static lv_obj_t * commander_element = NULL; /* carousel element container */
+static lv_obj_t * commander_quad_labels[4] = {NULL, NULL, NULL, NULL};
+
+/* Modal editor state */
+static lv_obj_t * commander_modal = NULL;
+static lv_obj_t * commander_modal_label = NULL;
+static lv_obj_t * commander_modal_delta_label = NULL;
+static lv_timer_t * commander_modal_timer = NULL;
+static int commander_modal_total = 0; /* running total inside modal */
+static int commander_modal_delta = 0; /* running delta inside modal */
+static int commander_modal_idx = -1; /* which quadrant is being edited */
+
+/* forward declare the modal event handler (defined later) so open_commander_modal can use it */
+static void commander_modal_event_cb(lv_event_t * e);
+
+static void commander_modal_hide_cb(lv_timer_t * t)
+{
+  (void)t;
+  if (commander_modal) lv_obj_add_flag(commander_modal, LV_OBJ_FLAG_HIDDEN);
+  if (commander_modal_timer) { lv_timer_del(commander_modal_timer); commander_modal_timer = NULL; }
+  /* commit the edited total back to the quadrant and update its label */
+  if (commander_modal_idx >= 0 && commander_modal_idx < 4) {
+    commander_totals[commander_modal_idx] = commander_modal_total;
+    if (commander_quad_labels[commander_modal_idx]) {
+      char buf[16]; snprintf(buf, sizeof(buf), "%d", commander_totals[commander_modal_idx]);
+      lv_label_set_text(commander_quad_labels[commander_modal_idx], buf);
+    }
+  }
+  commander_modal_idx = -1;
+  commander_modal_delta = 0;
+}
+
+static void show_commander_modal_delta(int delta)
+{
+  if (!commander_modal_delta_label) return;
+  commander_modal_delta += delta;
+  char tmp[16];
+  snprintf(tmp, sizeof(tmp), "%+d", commander_modal_delta);
+  lv_label_set_text(commander_modal_delta_label, tmp);
+  lv_obj_clear_flag(commander_modal_delta_label, LV_OBJ_FLAG_HIDDEN);
+  /* reset the auto-close timer */
+  if (commander_modal_timer) lv_timer_reset(commander_modal_timer);
+  else commander_modal_timer = lv_timer_create(commander_modal_hide_cb, 3000, NULL);
+}
+
+static void open_commander_modal(int idx)
+{
+  if (idx < 0 || idx > 3) return;
+  commander_modal_idx = idx;
+  commander_modal_total = commander_totals[idx];
+  commander_modal_delta = 0;
+  char buf[32];
+  if (!commander_modal) {
+    /* create full-screen modal overlay */
+    commander_modal = lv_obj_create(lv_scr_act());
+    lv_obj_set_size(commander_modal, lv_disp_get_hor_res(NULL), lv_disp_get_ver_res(NULL));
+    lv_obj_set_style_bg_color(commander_modal, lv_color_hex(0x000000), LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(commander_modal, LV_OPA_80, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_obj_add_flag(commander_modal, LV_OBJ_FLAG_HIDDEN);
+    /* big label in center */
+    commander_modal_label = lv_label_create(commander_modal);
+    lv_obj_set_style_text_font(commander_modal_label, &lv_font_montserratMedium_42, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_label_set_text(commander_modal_label, "0");
+    lv_obj_align(commander_modal_label, LV_ALIGN_CENTER, 0, -20);
+    /* running delta below */
+    commander_modal_delta_label = lv_label_create(commander_modal);
+    lv_obj_set_style_text_font(commander_modal_delta_label, &lv_font_montserratMedium_16, LV_PART_MAIN|LV_STATE_DEFAULT);
+    lv_label_set_text(commander_modal_delta_label, "");
+    lv_obj_add_flag(commander_modal_delta_label, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_align(commander_modal_delta_label, LV_ALIGN_CENTER, 0, 40);
+    /* modal captures presses to increment/decrement like life screen */
+    lv_obj_add_event_cb(commander_modal, commander_modal_event_cb, LV_EVENT_ALL, NULL);
+  }
+  /* update label and show modal */
+  snprintf(buf, sizeof(buf), "%d", commander_modal_total);
+  lv_label_set_text(commander_modal_label, buf);
+  lv_obj_clear_flag(commander_modal, LV_OBJ_FLAG_HIDDEN);
+  /* start/reset the auto-close timer */
+  if (commander_modal_timer) lv_timer_reset(commander_modal_timer);
+  else commander_modal_timer = lv_timer_create(commander_modal_hide_cb, 3000, NULL);
+}
+
+static void commander_quad_event_cb(lv_event_t * e)
+{
+  lv_event_code_t code = lv_event_get_code(e);
+  if (code == LV_EVENT_SHORT_CLICKED) {
+    /* figure which quad was clicked by comparing current_target to our labels' parents */
+    lv_obj_t * target = e->current_target;
+    for (int i = 0; i < 4; ++i) {
+      if (target == lv_obj_get_parent(commander_quad_labels[i]) || target == commander_quad_labels[i]) {
+        open_commander_modal(i);
+        break;
+      }
+    }
+  } else if (code == LV_EVENT_PRESSED) {
+    /* flash feedback */
+    lv_obj_t * target = e->current_target;
+    for (int i = 0; i < 4; ++i) {
+      if (target == lv_obj_get_parent(commander_quad_labels[i]) || target == commander_quad_labels[i]) {
+        lv_obj_t * flash = lv_obj_create(lv_obj_get_parent(commander_quad_labels[i]));
+        lv_obj_set_size(flash, lv_obj_get_width(lv_obj_get_parent(commander_quad_labels[i])), lv_obj_get_height(lv_obj_get_parent(commander_quad_labels[i])));
+        lv_obj_align(flash, LV_ALIGN_CENTER, 0, 0);
+        lv_obj_set_style_bg_color(flash, lv_color_hex(0xFFFFFF), LV_PART_MAIN|LV_STATE_DEFAULT);
+        lv_obj_set_style_bg_opa(flash, LV_OPA_30, LV_PART_MAIN|LV_STATE_DEFAULT);
+        lv_timer_create(hide_flash_timer_cb, 120, flash);
+        break;
+      }
+    }
+  }
+}
+
+/* Event callback for the commander modal (increment/decrement with top/bottom tap).
+   Implemented as a named function so it can be passed as a C-style function pointer. */
+static void commander_modal_event_cb(lv_event_t * e)
+{
+  lv_event_code_t code = lv_event_get_code(e);
+  if (code == LV_EVENT_PRESSED || code == LV_EVENT_SHORT_CLICKED) {
+    lv_point_t p; lv_indev_get_point(lv_indev_get_act(), &p);
+    lv_area_t coords; lv_obj_get_coords(e->current_target, &coords);
+    int height = coords.y2 - coords.y1 + 1;
+    int rely = p.y - coords.y1;
+    int delta = (rely < height/2) ? +1 : -1;
+    commander_modal_total += delta;
+    char buf_local[32]; snprintf(buf_local, sizeof(buf_local), "%d", commander_modal_total);
+    if (commander_modal_label) lv_label_set_text(commander_modal_label, buf_local);
+    show_commander_modal_delta(delta);
+  }
+  /* reset/extend the auto-close timer on any click */
+  if (commander_modal_timer) lv_timer_reset(commander_modal_timer);
+}
+
+// Simple animation helpers: pulse a label by animating its transform zoom.
+static void anim_set_zoom(void * var, int32_t v)
+{
+  lv_obj_set_style_transform_zoom((lv_obj_t *)var, (lv_coord_t)v, 0);
+}
+
+static void anim_pulse_label(lv_obj_t * label)
+{
+  if (!label) return;
+  lv_anim_t a;
+  lv_anim_init(&a);
+  lv_anim_set_var(&a, label);
+  /* Zoom from the default 512 (100%) up to 768 (~150%) and back. */
+  lv_anim_set_values(&a, 512, 768);
+  lv_anim_set_time(&a, 160);
+  lv_anim_set_playback_time(&a, 160);
+  lv_anim_set_playback_delay(&a, 0);
+  lv_anim_set_repeat_count(&a, 0);
+  /* Use the LVGL exec callback typedef present in this LVGL version. */
+  lv_anim_set_exec_cb(&a, (lv_anim_exec_xcb_t)anim_set_zoom);
+  lv_anim_start(&a);
+}
+
 static void life_delta_hide_cb(lv_timer_t * t)
 {
   (void)t;
@@ -180,21 +336,60 @@ static void example_button_task(void* parmeter)
     EventBits_t even = xEventGroupWaitBits(key_groups,BIT_EVEN_ALL,pdTRUE,pdFALSE,pdMS_TO_TICKS(2 * 1000));
     if(READ_BIT(even,0)) //boot
     {
-      if(READ_BIT(even_flag,0))
-      {
-        CLEAR_BIT(even_flag,0);
-        lv_obj_clear_flag(ui->screen_carousel_1,LV_OBJ_FLAG_SCROLLABLE); //unmovable
-        lv_obj_clear_flag(ui->screen_cont_4,LV_OBJ_FLAG_HIDDEN); 
-        lv_obj_add_flag(ui->screen_cont_3, LV_OBJ_FLAG_HIDDEN);
+      /* Make the BOOT button behavior depend on the currently active
+         carousel element so each page can have its own action. */
+      lv_obj_t * act_elem = lv_carousel_get_element_act(ui->screen_carousel_1);
+      if (act_elem == ui->screen_carousel_1_element_life) {
+        /* Life screen: reset life to 40 */
+        mtg_life = 40;
+        {
+          char buf[16]; snprintf(buf, sizeof(buf), "%d", mtg_life);
+          if (ui->screen_label_life_obj) {
+            lv_label_set_text(ui->screen_label_life_obj, buf);
+            /* Pulse the label so user sees the reset occurred. */
+            anim_pulse_label(ui->screen_label_life_obj);
+          }
+        }
+        /* hide and reset running life delta */
+        if (life_delta_label) lv_obj_add_flag(life_delta_label, LV_OBJ_FLAG_HIDDEN);
+        if (life_delta_timer) { lv_timer_del(life_delta_timer); life_delta_timer = NULL; }
+        life_delta_total = 0;
+      } else if (act_elem == ui->screen_carousel_1_element_mid) {
+        /* PT screen: reset power and toughness */
+        pt_power = 0;
+        pt_tough = 0;
+        if (ui->screen_label_power) {
+          lv_label_set_text(ui->screen_label_power, "+0");
+          anim_pulse_label(ui->screen_label_power);
+        }
+        if (ui->screen_label_toughness) {
+          lv_label_set_text(ui->screen_label_toughness, "+0");
+          anim_pulse_label(ui->screen_label_toughness);
+        }
+      } else if (act_elem == ui->screen_carousel_1_element_2) {
+        /* Touch-test screen: preserve existing toggle behavior */
+        if(READ_BIT(even_flag,0))
+        {
+          CLEAR_BIT(even_flag,0);
+          lv_obj_clear_flag(ui->screen_carousel_1,LV_OBJ_FLAG_SCROLLABLE); //unmovable
+          lv_obj_clear_flag(ui->screen_cont_4,LV_OBJ_FLAG_HIDDEN); 
+          lv_obj_add_flag(ui->screen_cont_3, LV_OBJ_FLAG_HIDDEN);
+        }
+        else
+        {
+          SET_BIT(even_flag,0);
+          lv_obj_add_flag(ui->screen_carousel_1,LV_OBJ_FLAG_SCROLLABLE); //removable
+          lv_obj_clear_flag(ui->screen_cont_3,LV_OBJ_FLAG_HIDDEN); 
+          lv_obj_add_flag(ui->screen_cont_4, LV_OBJ_FLAG_HIDDEN);
+        }
+        lv_obj_invalidate(ui->screen_carousel_1);  // mark redraw
+      } else if (act_elem == ui->screen_carousel_1_element_3) {
+        /* Brightness screen: reset to max */
+        setBrightnes(255);
+        if (ui->screen_slider_1) lv_slider_set_value(ui->screen_slider_1, 255, LV_ANIM_ON);
+      } else {
+        /* Unknown/other element: no-op */
       }
-      else
-      {
-        SET_BIT(even_flag,0);
-        lv_obj_add_flag(ui->screen_carousel_1,LV_OBJ_FLAG_SCROLLABLE); //removable
-        lv_obj_clear_flag(ui->screen_cont_3,LV_OBJ_FLAG_HIDDEN); 
-        lv_obj_add_flag(ui->screen_cont_4, LV_OBJ_FLAG_HIDDEN);
-      }
-      lv_obj_invalidate(ui->screen_carousel_1);  // 标记重绘
     }
     if(READ_BIT(even,5)) //长按 boot
     {
@@ -455,6 +650,32 @@ void user_app_init(void)
     int16_t delta_extra = (ver_res * 25) / 100; /* additional 25% downward shift */
     lv_obj_align_to(life_delta_label, user_ui.screen_label_life_obj, LV_ALIGN_OUT_BOTTOM_MID, 0, 4 + delta_h + delta_extra);
     lv_obj_move_foreground(life_delta_label);
+  }
+  /* Create commander-damage carousel element with four quadrants */
+  if (user_ui.screen_carousel_1) {
+    /* add a new element to the carousel (id 4) */
+    commander_element = lv_carousel_add_element(user_ui.screen_carousel_1, 4);
+    if (commander_element) {
+      int hor = lv_disp_get_hor_res(NULL);
+      int ver = lv_disp_get_ver_res(NULL);
+      int w = hor / 2;
+      int h = ver / 2;
+      for (int i = 0; i < 4; ++i) {
+        lv_obj_t * quad = lv_obj_create(commander_element);
+        lv_obj_set_size(quad, w, h);
+        /* position: TL=0, TR=1, BL=2, BR=3 */
+        int ofs_x = (i % 2 == 0) ? -w/2 : w/2;
+        int ofs_y = (i < 2) ? -h/2 : h/2;
+        lv_obj_align(quad, LV_ALIGN_CENTER, ofs_x, ofs_y);
+        lv_obj_set_style_bg_opa(quad, LV_OPA_TRANSP, LV_PART_MAIN|LV_STATE_DEFAULT);
+        /* label showing the total */
+        commander_quad_labels[i] = lv_label_create(quad);
+        lv_obj_set_style_text_font(commander_quad_labels[i], &lv_font_montserratMedium_42, LV_PART_MAIN|LV_STATE_DEFAULT);
+        lv_label_set_text(commander_quad_labels[i], "0");
+        lv_obj_align(commander_quad_labels[i], LV_ALIGN_CENTER, 0, 0);
+        lv_obj_add_event_cb(quad, commander_quad_event_cb, LV_EVENT_ALL, NULL);
+      }
+    }
   }
   user_button_init();
   adc_bsp_init();
