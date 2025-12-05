@@ -1,6 +1,2 @@
 /.vscode
-build/*.*
-/build
-build/CMakeFiles/CMakeConfigureLog.yaml
-build/CMakeCache.txt
-build/CMakeFiles/clean_additional.cmake
+build/
